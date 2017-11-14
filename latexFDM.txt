@@ -1,0 +1,221 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{epsfig} % for postscript graphics files
+%\usepackage{mathptmx} % assumes new font selection scheme installed
+%\usepackage{times} % assumes new font selection scheme installed
+%\usepackage{amsmath} % assumes amsmath package installed
+%\usepackage{amssymb}  % assumes amsmath package installed
+\usepackage{kotex}
+\usepackage{indentfirst}
+\usepackage{natbib}
+\parindent=1em
+
+
+\title{\LARGE \bf
+유한차분법을 사용해서 얻은 포아송 방정식의 근사해에 대하여
+}
+\author{서훈\\
+경희대 물리학과}
+\date{December 2016}
+
+\begin{document}
+
+\maketitle
+
+\section{도입}
+
+대부분의 학부 일반물리학 실험 수업들은 특정한 전하 분포에 대해 전위  분포를 측정하는 실험을 포함하고 있다. 따라서 실험이 제대로 수행되었는지를 확인하기 위해 이론값을 구하는 방법의 개발이 중요하다. 만약 전하 분포를 입력했을 때 전위 분포를 출력해주는 프로그램이 있다면 교육적인 관점에서 유용할 것이다.
+
+퍼텐셜이 경계조건으로 주어졌을 때 이를 이용해서 포아송 방정식의 해를 유한차분법을 사용하여 구하는 방법은 이미 많이 연구되었다. 본 연구에서는 경계조건 대신에 전하분포가 주어진 경우, 역으로 전하 분포를 이용해 경계조건을 구하고, 다시 그 경계조건을 이용해서 유한차분법을 적용하는 방법을 논의하겠다. 언어로는 파이썬 2.7버전을 이용하였으며, 오차값과 연산시간을 줄이기 위한 방법들을 고찰하였다.
+
+\section{프로그램의 구성}
+
+\subsection{경계 외곽에서의 경계조건}
+
+진공 상태의 2차원 비연속 좌표계에서 포아송 방정식은 다음과 같이 주어진다.\footnote{James R. Nagel, "Solving the Generalized Poisson Equation Using the Finite-Difference Method(FDM)"(University of Utah:Department of Electrical and Computer Engineering, February 2012). p.3.}
+\begin{equation}\label{eq1}V(i,j)=\frac{1}{4}[V(i-1,j)+V(i+1,j)+V(i,j-1)+V(i,j+1)+\frac{\rho(i,j)h^2}{\varepsilon_0}]\end{equation}
+여기서 $i$와 $j$는 좌상단 경계점에서 각각 오른쪽으로 몇 칸 갔는지, 아래쪽으로 몇 칸 갔는지를 나타내는 좌표값이고, $\rho$와 $h^2$는 각각 전하밀도와 픽셀의 크기를 뜻한다.
+
+2차원에서 포아송 방정식의 유한차 근사를 계산하기 위해서는 직사각형의 구역의 외곽를 따라 경계조건이 주어지면 좋다(이렇게 경계조건으로 주어진 전위들을 앞으로 경계 전위라 부르겠다). 왜냐하면 외곽 내부에서 유한차분법을 사용하는 경우, 어떤 한 픽셀의 전위는 주변 4픽셀의 전위로부터 결정되기 때문이다. 따라서 직사각형 모양의 외곽을 따라 전위가 주어진 경우에는 외곽과 평행한 방향으로(가로 또는 세로 방향으로) 계산해 나가면서 항상 4픽셀 중 1픽셀에서의 정확한 전위를 사용할 수 있기 때문이다(네 귀퉁이에서는 2픽셀). 그러므로 모든 점에서의 전위가 비슷한 속도로 고르게 수렴하게 되는 장점이 있다.
+\begin{figure}[ht]
+\centering
+\includegraphics[scale=0.4]{fi1.pdf}
+\caption{경계 근처에서 유한차분법을 사용할 때 경계 전위들의 영향을 고르게 사용하게 된다}
+\label{fig:boxboundary}
+\end{figure}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[scale=0.4]{fi2.pdf}
+\caption{distance=4로 입력 받은 경우. 경계에서 멀리 떨어진 지점에서도 경계 전위의 영향을 얻을 수 있게 된다}
+\label{fig:distboundary}
+\end{figure}
+
+Figure \ref{fig:boxboundary}에서 빨간색 점은 경계조건으로 주어진 전위, 파란색 점인 현재 전위를 측정하고자 하는 위치, 초록색 점은 파란색 점의 전위를 측정하기 위해 사용될 전위를 뜻한다. Figure \ref{fig:boxboundary}에서 처럼 최외곽 경계에서 전위들이 주어진 경우 각 지점에서의 전위들이 정확한 전위값으로 고르게 수렴하게 된다.
+
+\subsection{영역 내부에서의 경계 조건}
+
+하지만 외곽에서 멀리 떨어진 지점에서는 외곽 전위에 의한 영향을 덜 받기 때문에 상대적으로 느리게 수렴하게 되는데 이를 해결하기 위해 distance라는 변수값으로 입력받은 격자점들(이하 격자점)에서도 정확한 전위를 구해서 경계 전위로 사용해주면 경계 전위들이 구역 내에 상대적으로 고르게 분포하게 된다(Figure \ref{fig:distboundary}). 실제로 뒤에서 밝히겠지만 격자점들을 이용한 경우, 이용하지 않은 경우보다 더 빠르게 정확한 전위로 수렴하게 된다. 그리고 격자점 경계 조건으로 사용될 전위들은, 영역 외곽에서 구했던 것처럼 전위를 측정하고자 하는 위치와 전자들의 위치 간의 거리 $r$에 대해, 모든 전자들의 $1/r$들을 더해서 정확하게 얻을 수 있다. 그리고 전자들의 위치는 마우스 click 혹은 drag and drop을 통해 입력받도록 되어있다.
+
+\subsection{전자의 위치}
+
+그런데 만약 전위를 측정하고자 하는 바로 그 위치에 전자가 있다면 전위는 어떻게 될까? $r=0$이 되어 $1/r$이 무한대로 발산하게 된다. 이 문제를 해결하기 위해 전자의 위치는 픽셀 중앙에 위치하는 것이 아니라, 픽셀의 좌상단 꼭지점에 위치하게 된다고 간주하겠다(Figure \ref{fig:elecpos}).
+
+\begin{figure}[h!]
+\centering
+\includegraphics[scale=0.4]{fi3.pdf}
+\caption{검은 점으로 표시된 전자들의 좌표가 전위를 정확히 측정하고자 하는 좌표와 겹치더라도 위치는 살짝 어긋나게 된다}
+\label{fig:elecpos}
+\end{figure}
+
+\subsection{단위의 단순화}
+
+그런데 실제 한 전하가 만드는 전위는 cgs단위계에서 $\frac{e}{4\pi\varepsilon_0r}$인데 실제 우리가 계산하게 될 양은 모두 $\frac{1}{r}$이 될 것이므로 단위길이(한 픽셀의 변의 길이) $h=1unit length$에 대해 편의상 $\frac{e}{4\pi\varepsilon_0}$를 $1V\cdot h$라고 간주하겠다. 한편 전하가 만드는 전하밀도는 전하가 위치한 꼭지점을 기준으로 주면 4픽셀에 대해 각각의 픽셀마다 $\frac{e}{4h^2}$의 전하밀도 값을 주게 되는데, 이 전하밀도로 인한 전위는 $\frac{e}{4\varepsilon_0h}$가 된다. 그런데 $\frac{e}{4\pi\varepsilon_0}=1V\cdot h$라고 가정하였으므로 4개의 픽셀은 각각 $\pi\cdot V$의 전위를 가져가게 된다. 즉 전자가 있는 위치 근방 4픽셀은 전하밀도(식(\ref{eq1})에서 $\rho(i,j)$항)로 인한 전위 $\pi V$를 가져가가게 된다.
+
+\section{프로그램의 실행}
+
+이러한 가정들을 프로그램에 입력하고 나면, 프로그램은 우선 유한차분법(이하 FDM)을 이용해 전위들을 구하게 된다. FDM을 이용한 대개의 다른 연구들에서는 이전 단계에서 구한 전위와 현재 단계에서 구한 전위의 차이의 최댓값이 일정 수치 밑으로 떨어질 때까지 근사했었다. 하지만 본 프로그램에서는 이미 정확하게 전위를 구한 격자점에서의 전위와 유한차분법으로 구한 전위와의 오차율이 일정 비율보다 작아질 때까지 계산하도록 설정되어 있다. 후에 보이겠지만 이런 방식을 이용하면 정확하게 전위를 구한 경우(이하 DM)와 비교해 전체적으로 오차율이 얼마나 될 때까지 근사할 것인가를 통제할 수 있다. 우리가 조절할 수 있는 변수들은, 경계 조건으로 사용할 격자점 간의 거리 distance와, 전자들의 갯수와 위치, 완화상수, 영역의 가로-세로 길이이다.
+
+\subsection{완화 상수(Relaxation Constant)}
+
+많은 경우 유한차분법에서 완화상수를 사용한다. 완화상수를 도입하면 정확한 전위로의 수렴속도가 더 빨라짐이 알려져 있으며(method of successive over-relaxation) 완화상수 $w$를 도입할 경우 식\ref{eq1}은 다음과 같이 바뀐다.\footnote{James R. Nagel, "Solving the Generalized Poisson Equation Using the Finite-Difference Method(FDM)"(University of Utah:Department of Electrical and Computer Engineering, February 2012). p.7.}
+
+\begin{equation}\label{eq2}V(i,j)=\frac{w}{4}[V(i-1,j)+V(i+1,j)+V(i,j-1)+V(i,j+1)+\frac{\rho(i,j)h^2}{\varepsilon_0}]-(1-w)V(i,j)\end{equation}
+
+그리고 완화상수 $w$는 보통 trial and error 방식으로 찾는 것이 원칙이나 특별히 직사각형 영역에서 FDM을 사용할 경우에는 최적의 완화상수는 다음과 같음도 알려져 있다.
+
+\begin{equation}\label{eq3}w=\frac{8-\sqrt{64-16t^2}}{t^2}\end{equation}
+
+여기서 $t$는
+
+\begin{equation}\label{eq4}t=\cos{\frac{\pi}{N_x}}+\cos{\frac{\pi}{N_y}}\end{equation}
+
+이고 $N_x$와 $N_y$는 각각 가로 방향의 창의 너비(픽셀 수)와 세로 방향의 창의 높이(픽셀 수)를 뜻한다.. 프로그램의 실행에서 사용할 창의 가로, 세로 길이는 각각 450픽셀, 300픽셀이고, 이 경우 완화상수$w=1.982358$가 된다. 과연 이 값이 최적의 완화상수인지 실험해 보았다. 용어들에 대해서는 뒤에서 설명하겠지만 distance=5, diserl=15percentage, 전자의 갯수=100인 조건하에서 다음과 같은 결과가 나왔다.
+
+\begin{table}[h]
+\caption{완화상수와 연산시간}
+\label{tabw}
+\begin{center}
+\begin{tabular}{cccc}
+\hline\hline
+완화상수 & 전체 평균 오차율(percentage) & FDM 연산시간(초) & DM 연산시간(초) \\
+\hline
+1.982358 & 10.714 & 30 & 26 \\
+1.7 & 11.22 & 6 & 27 \\
+1.6 & 10.27 & 6 & 29 \\
+1.5 & 11.79 &5 & 24 \\
+1.4 & 12.22 & 8 & 33 \\
+\hline\hline
+\end{tabular}
+\end{center}
+\end{table}
+
+table\ref{tabw}에서 보듯이 최적의 완화상수는 1.5 근방에 있으며 앞으로 완화상수 w(프로그램 내에서는 relex)는 1.5로 사용하도록 하겠다.
+
+\subsection{격자점에서의 평균 오차율 한계}
+
+\begin{table}[h!]
+\caption{격자점 오차율 한계의 변동에 따른 변화}
+\label{tab2}
+\begin{center}
+\begin{tabular}{cccc}
+\hline\hline
+격자점 오차율 한계(percentage) & 전체 평균 오차율(percentage) & FDM 연산시간(초) & DM 연산시간(초) \\
+\hline
+40 & 51.04 & 4 & 35 \\
+30 & 37.09 & 4 &36 \\
+20 & 25.39 & 6 & 32 \\
+10 & 12.85 & 8 & 31 \\
+5 & 6.34 & 12 & 33 \\
+2 & 3.92 & 14 & 35\\
+\hline\hline
+\end{tabular}
+\end{center}
+\end{table}
+
+앞서 서술했듯이 FDM은 격자점에서의 오차율의 평균이 입력된 비율(코드 내에서 diserl)보다 작아질 때까지 근사하도록 설정되어있다. 하지만 격자점에서의 오차가 작다고 해서 다른 점들에서의 오차도 작다고 보장할 수 있을까? 이번 절에서는 격자점에서의 평균 오차가 모든 점에서의 평균 오차와 어떤 상관 관계를 가지는지, 격자점에서의 평균 오차를 줄이기 위해 어느 정도의 연산 시간을 희생해야 할 지 살펴보겠다. 임의의 위치를 가지는 100개의 전자들이 영역 내부에 있으며, distance는 5로 입력되어있다. 
+
+\begin{figure}[ht]
+\centering
+\includegraphics[scale=0.4]{fi4.pdf}
+\caption{무작위 위치를 갖는 100개의 전하 분포}
+\label{fig4}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[scale=0.4]{fig5.pdf}
+\caption{Figure4와 같은 전하 분포에서 정확하게 전위를 구한 뒤 전위에 비례한 정도로 흰 색을 입힌 모습}
+\label{fig5}
+\end{figure}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[scale=0.4]{fig6.pdf}
+\caption{격자점 오차율 한계가 40퍼센트인 경우에 유한차 근사 결과}
+\label{fig6}
+\end{figure}
+
+표\ref{tab2}를 보며 격자점 오차 한계는 전체 픽셀에서의 평균 오차율에 약 1.3배 정도로 비례하므로 원하는 격자점 오차율 한계를 조절해 줌으로써 원하는 오차값에 도달할 수 있다. 물론 오차율을 낮추기 위해서는 더 많은 iteration이 필요하며 연산시간이 늘어나는 희생은 불가피하다. 하지만 뒤에서 살펴보겠지만 전체 오차율은 distance 값에도 영향을 받으므로, 적절한 ditance값을 먼저 결정해 주고나서 diserl값을 설정하여야 한다. 다음 절에서는 적절한 distance값을 찾을 것이다.
+
+\subsection{격자점 간격의 조정}
+
+격자점이란 앞서 밝혔듯이, 영역 내부에서 경계전위로 사용하기로 한 픽셀을 뜻하며, 격자점 간의 간격은 distance로 입력 받는다. 격자점을 사용할 경우 사용하지 않을 때보다 연산속도 즉 수렴 속도는 빨라지며 따라서 짧은 시간 내에 더 작은 오차율에 도달할 수 있다. 격자점 간격이 줄어들어 촘촘해지면, 격자점의 수가 늘어나며 따라서 더 많은 경계조건을 사용할 수 있지만, 대신 격자점에서의 정확한 전위를 계산해야 하는 시간만큼 느려진다. 그렇다면 최적의 distance값은 얼마인지를 실험해 보았다. 마찬가지로 전자의 갯수는 100개로 임의의 위치에 생성시켰으며, diserl=10percentage로 설정하였다.
+
+\begin{table}[h!]
+\caption{격자점 간격의 변동에 따른 오차율과 연산 시간}
+\label{tab3}
+\begin{center}
+\begin{tabular}{cccc}
+\hline\hline
+격자점 간격(픽셀) & 전체 평균 오차율(percentage) & FDM 연산시간(초) & DM 연산시간(초) \\
+\hline
+25 & 20.90 & 196 & 31 \\
+20 & 20.58 & 97 &32 \\
+15 & 18.76 & 55 & 29 \\
+10 & 16.64 & 26 & 29 \\
+5 & 12.87 & 8 & 32 \\
+3 & 8.67 & 13 & 35\\
+2 & 4.99 & 21 & 34 \\
+\hline\hline
+\end{tabular}
+\end{center}
+\end{table}
+
+distance=25인 경우에는 오차율 한계를 만족시키기 위해 자그마치 196번의 iteration이 필요하였다. 본 연구의 조건에 적합한 격자점 간격은 대략 5정도라고 생각된다. 격자점 간격이 5인 경우 영역 내부에서 직접적으로 전위를 계산해야 할 격자점의 갯수는 전체 픽셀의 약 $1/25$배이다.
+
+\subsection{전자의 갯수와 연산 시간}
+
+전자 갯수에 대해 살펴보면, 전위를 직접적으로 정확하게 구하는 방식에서는 어떤 한 관측점에서의 전위를 계산하기 위해서 $1/r$을 전자의 갯수 만큼 계산해주어야 한다. 따라서 계산량이 전자의 갯수에 비례해서 증가하게 된다. 하지만 유한차근사 방식에서는 최외곽 경계와 내부 격자점에서의 전위들만 정확하게 계산해주면 되므로 연산시간이 전자에 갯수에 크게 영향을 받지 않는다.
+Table \ref{table1}은 격자점 간 거리(distance)=5픽셀, 격자점에서의 평균오차한계(diserl)=10percentage인 조건 하에서, 임의의 위치에 생성된 전자들의 갯수에 따른 연산시간의 추이를 나타낸다.
+\begin{table}[h!]
+\caption{전자들의 갯수와 연산시간}
+\label{table1}
+\begin{center}
+\begin{tabular}{cccc}
+\hline\hline
+전자 갯수 & FDM 연산시간(초) & DM 연산시간(초) & 전체 평균 오차율(percentage) \\
+\hline
+50 & 10 & 19 & 12.92 \\
+100 & 7 & 30 & 12.88 \\
+150 & 8 & 48 & 12.87 \\
+200 & 9 & 59 & 12.82 \\
+250 & 10 & 71 & 12.78 \\
+\hline\hline
+\end{tabular}
+\end{center}
+\end{table}
+
+표\ref{table1}에서 확인할 수 있듯이 FDM에서는 연산시간이 전자들의 갯수에 크게 영향을 받지 않는다. 그런데 전자를 직접 구하는 방식에서는 예상대로 연산시간이 전자의 갯수에 비례한다. 이번 절에서 확인할 수 있는 점은, 전자가 많아질수록 전위를 직접 구하는 방식보다는 유한차분법으로 구하는 것이 유리하다는 점이다.
+
+\section{결론}
+
+전자의 갯수가 작은 경우에는, $1/r$들을 계산하여 더해주는 직접적인 방법이 오차는 전혀 없으면서 연산시간도 길지 않은 좋은 방법일 것이다. 하지만 본 연구에서 알아봤듯이 전자의 갯수가 많은 경우에는(약 300개가 넘어가는 경우) 유한차분법을 이용하여 전위를 구하는 것이 연산시간을 대폭 줄여준다. 유한차분법에서 사용할 경계전위를 어떤 위치에서 구할지는 연구자의 선택이나, 본 연구에서는 직사각형 모양의 영역에 대해 영역의 외곽과 영역 내부의 격자점들(일정 간격으로 떨어져있는)에서 경계전위를 구하는 것이 좋다고 가정하고 그렇게 경계전위를 구해보았다. 그리고 3.4절에서 이러한 방법이 연산시간을 대폭 줄일 수 있음을 확인하였다. 
+
+\begin{thebibliography}{1}
+\bibitem[{James R. Nagel(2012)}]{Nagel:2012}James R. Nagel, "Solving the Generalized Poisson Equation Using the Finite-Difference Method(FDM)"(University of Utah:Department of Electrical and Computer Engineering, February 2012).
+\end{thebibliography}
+
+%\documentclass{}
+\end{document}
+
