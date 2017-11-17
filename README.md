@@ -1,6 +1,6 @@
 # Graduation_Thesis
 Approximate Solution of Poisson Equation Obtained by Finite Difference Method
-Made by Seo Hoon (Kyung Hee University, hhoon0001@naver.com)
+Made by Seo Hoon (Kyung Hee University, hhoon0001@naver.com) All rights reserved.
 Code FDM2.py is faster than FDM1.py, but FDM1 is more unstable when varable 'distance' is small. 
 This program made as the Python 2.7 language.
 How to use:
