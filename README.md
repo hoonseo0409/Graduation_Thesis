@@ -2,7 +2,7 @@
 Approximate Solution of Poisson Equation Obtained by Finite Difference Method
 Made by Seo Hoon (Kyung Hee University, hhoon0001@naver.com)
 Code FDM2.txt is faster than FDM1.txt, but FDM1 is more unstable. 
-This program works well in the Python 2.7 language.
+This program made as the Python 2.7 language.
 How to use:
 1. Enter the appropriate Distance and Error Limit values.
 2. In the 'Electron Input and FDM Potential' window, create a charge by left-clicking or right-dragging and dropping.
