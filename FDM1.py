@@ -144,7 +144,7 @@ def cal_box(event):   #자기 자신 전위빼고 나머지 전위 기여 계산
     mean_diser=sum_diser/number
     iteration += 1
   FDM_end=time.time()
-  print "**********\tFDM END\t**********\ndistance=%d\nlimit error percentage=%f percent\niteration %d done\nnumber of electrons are %d\nFDM time taken = %d sec\n********************"%(distance, diserl*100, iteration, len(Pos_lst), FDM_end-FDM_start+box_end-box_start)
+  print "**********\tFDM END\t**********\ndistance=%d\nlimit error percentage=%f percent\niteration %d done\nthe number of electrons is %d\nFDM time taken = %d sec\n********************"%(distance, diserl*100, iteration, len(Pos_lst), FDM_end-FDM_start+box_end-box_start)
 
 #FDM 방식으로 전위 색칠하기
 
